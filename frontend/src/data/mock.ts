@@ -48,6 +48,45 @@ export const currentUser: User = {
   institution_id: '1',
 };
 
+const EXAMPLE_EMAIL = currentUser.email;
+
+export function getCurrentUser(): User {
+  try {
+    const stored = localStorage.getItem('moodtask_user');
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<User>;
+
+      const isExample = parsed.email === EXAMPLE_EMAIL;
+
+      if (!isExample) {
+        parsed.points = 0;
+        parsed.role = 'member';
+      }
+
+      const baseUser = isExample ? currentUser : { ...currentUser, points: 0, role: 'member' };
+      const result = {
+        ...baseUser,
+        points: baseUser.points,
+        ...parsed,
+      };
+
+      if (import.meta.env.DEV) {
+        console.log('[getCurrentUser] localStorage user:', parsed, '→ result:', result);
+      }
+
+      return result;
+    }
+  } catch {
+    // ignore
+  }
+
+  if (import.meta.env.DEV) {
+    console.log('[getCurrentUser] using mock user:', currentUser);
+  }
+
+  return currentUser;
+}
+
 export const teamMembers: User[] = [
   currentUser,
   { id: '2', name: 'Carlos Santos', email: 'carlos@moodtask.com', avatar: '', role: 'member', points: 980, institution_id: '1' },

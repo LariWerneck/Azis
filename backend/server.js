@@ -1,15 +1,13 @@
-const express = require("express")
-const cors = require("cors")
+const app = require('./app')
+const { initDB } = require('./config/db')
 
-const app = express()
+const PORT = process.env.PORT || 3000
 
-app.use(cors())
-app.use(express.json())
-
-app.get("/api/hello", (req, res) => {
-    res.json({ message: "API funcionando 🚀" })
-})
-
-app.listen(3000, () => {
-    console.log("Backend rodando na porta 3000")
-})
+initDB()
+  .then(() => {
+    app.listen(PORT, () => console.log(`Backend rodando na porta ${PORT}`))
+  })
+  .catch((err) => {
+    console.error('Erro ao conectar no banco:', err)
+    process.exit(1)
+  })

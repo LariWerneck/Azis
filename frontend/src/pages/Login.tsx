@@ -5,14 +5,50 @@ import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import { toast } from "@/hooks/use-toast";
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const apiUrl = (import.meta.env.VITE_API_URL as string) || "http://localhost:3000";
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/dashboard");
+
+    try {
+      const response = await fetch(`${apiUrl}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast({
+          title: "Erro no login",
+          description: data.error || "Não foi possível entrar.",
+        });
+        return;
+      }
+
+      localStorage.setItem("moodtask_token", data.token);
+      localStorage.setItem("moodtask_user", JSON.stringify(data.user));
+
+      toast({
+        title: "Login realizado",
+        description: "Bem-vindo de volta!",
+      });
+
+      navigate("/dashboard");
+    } catch (err) {
+      toast({
+        title: "Erro no login",
+        description: "Não foi possível se conectar ao servidor.",
+      });
+    }
   };
 
   return (

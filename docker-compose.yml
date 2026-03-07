@@ -1,12 +1,15 @@
 services:
 
   frontend:
-    build: ./frontend/mood-task-boost
+    build: ./frontend
     ports:
       - "8080:8080"
     volumes:
-      - ./frontend/mood-task-boost:/app
+      - ./frontend:/app
       - /app/node_modules
+    environment:
+      # The frontend runs in the browser, so it must call the backend via localhost
+      - VITE_API_URL=http://localhost:3000
     depends_on:
       - backend
     restart: always
@@ -17,6 +20,12 @@ services:
       - "3000:3000"
     volumes:
       - ./backend:/app
+    environment:
+      - DB_HOST=database
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=projeto
     depends_on:
       - database
     restart: always

@@ -4,13 +4,46 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 
+import { toast } from "@/hooks/use-toast";
+
 export default function Register() {
   const [form, setForm] = useState({ name: "", email: "", password: "", institution: "" });
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const apiUrl = (import.meta.env.VITE_API_URL as string) || "http://localhost:3000";
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/dashboard");
+
+    try {
+      const response = await fetch(`${apiUrl}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast({
+          title: "Erro no cadastro",
+          description: data.error || "Não foi possível criar sua conta.",
+        });
+        return;
+      }
+
+      toast({
+        title: "Conta criada",
+        description: "Você já pode entrar com suas credenciais.",
+      });
+
+      navigate("/login");
+    } catch (err) {
+      toast({
+        title: "Erro no cadastro",
+        description: "Não foi possível se conectar ao servidor.",
+      });
+    }
   };
 
   const update = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>

@@ -3,12 +3,14 @@ import { Gift, Star, ShoppingCart } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { mockRewards, currentUser } from "@/data/mock";
+import { getCurrentUser, mockRewards } from "@/data/mock";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export default function Rewards() {
-  const [points, setPoints] = useState(currentUser.points);
+  const currentUser = getCurrentUser();
+  const isExampleUser = currentUser.email === "ana@moodtask.com";
+  const [points, setPoints] = useState(isExampleUser ? currentUser.points : 0);
 
   const handleRedeem = (reward: typeof mockRewards[0]) => {
     if (points < reward.cost) {

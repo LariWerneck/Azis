@@ -1,18 +1,25 @@
 import { motion } from "framer-motion";
 import { KanbanSquare, Trophy, Smile, Star, TrendingUp, Users, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { currentUser, mockTasks, teamMembers, weeklyMoodData, monthlyProductivity } from "@/data/mock";
+import { getCurrentUser, mockTasks, teamMembers, weeklyMoodData, monthlyProductivity } from "@/data/mock";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
-const stats = [
-  { label: "Tarefas Concluídas", value: "23", icon: CheckCircle2, color: "text-primary" },
-  { label: "Pontos Totais", value: currentUser.points.toLocaleString(), icon: Star, color: "text-warning" },
-  { label: "Ranking", value: "#2", icon: Trophy, color: "text-accent" },
-  { label: "Humor Hoje", value: "😊", icon: Smile, color: "text-mood-good" },
-];
-
 export default function Dashboard() {
-  const myTasks = mockTasks.filter((t) => t.assignee.id === currentUser.id || currentUser.role === "manager");
+  const currentUser = getCurrentUser();
+  console.log("[Dashboard] currentUser:", currentUser);
+
+  const isExampleUser = currentUser.email === "ana@moodtask.com";
+
+  const stats = [
+    { label: "Tarefas Concluídas", value: isExampleUser ? "23" : "0", icon: CheckCircle2, color: "text-primary" },
+    { label: "Pontos Totais", value: (isExampleUser ? currentUser.points : 0).toLocaleString(), icon: Star, color: "text-warning" },
+    { label: "Ranking", value: isExampleUser ? "#2" : "#—", icon: Trophy, color: "text-accent" },
+    { label: "Humor Hoje", value: isExampleUser ? "😊" : "—", icon: Smile, color: "text-mood-good" },
+  ];
+
+  const myTasks = isExampleUser
+    ? mockTasks.filter((t) => t.assignee.id === currentUser.id || currentUser.role === "manager")
+    : [];
 
   return (
     <div className="p-6 lg:p-8 space-y-8">

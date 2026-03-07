@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Star, Trophy, History, Shield } from "lucide-react";
-import { currentUser } from "@/data/mock";
+import { getCurrentUser } from "@/data/mock";
 
 const pointsHistory = [
   { date: "06/03/2026", desc: "Setup CI/CD pipeline", points: 60 },
@@ -14,6 +14,9 @@ const pointsHistory = [
 ];
 
 export default function Profile() {
+  const currentUser = getCurrentUser();
+  const isExampleUser = currentUser.email === "ana@moodtask.com";
+
   return (
     <div className="p-6 lg:p-8 space-y-8 max-w-4xl">
       <h1 className="text-3xl font-heading font-bold text-foreground">Meu Perfil</h1>
@@ -33,14 +36,14 @@ export default function Profile() {
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1">
                   <Star className="w-4 h-4 text-warning" />
-                  <span className="font-heading font-bold text-foreground">{currentUser.points}</span>
+                  <span className="font-heading font-bold text-foreground">{isExampleUser ? currentUser.points : 0}</span>
                 </div>
                 <span className="text-xs text-muted-foreground">Pontos</span>
               </div>
               <div className="text-center">
                 <div className="flex items-center justify-center gap-1">
                   <Trophy className="w-4 h-4 text-accent" />
-                  <span className="font-heading font-bold text-foreground">#2</span>
+                  <span className="font-heading font-bold text-foreground">{isExampleUser ? "#2" : "—"}</span>
                 </div>
                 <span className="text-xs text-muted-foreground">Ranking</span>
               </div>
