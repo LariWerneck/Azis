@@ -34,3 +34,10 @@ docker-data
 
 frontend/mood-task-boost/node_modules
 backend/node_modules
+chave-site-prod.pem
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+.terraform/
+*.pem
+*.key
+credentials.json
