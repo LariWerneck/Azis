@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { KanbanSquare, Trophy, Smile, Star, TrendingUp, Users, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentUser, mockTasks, teamMembers, weeklyMoodData, monthlyProductivity } from "@/data/mock";
+import { getCurrentUser, mockTasks, users, weeklyMoodData, monthlyProductivity } from "@/data/mock";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
 
 export default function Dashboard() {
@@ -103,7 +103,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {[...teamMembers]
+              {[...users]
                 .sort((a, b) => b.points - a.points)
                 .slice(0, 5)
                 .map((member, i) => (

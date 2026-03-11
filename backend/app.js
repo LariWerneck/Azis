@@ -14,3 +14,14 @@ app.get('/api/hello', (req, res) => {
 })
 
 module.exports = app
+
+// rota de healthcheck
+app.get('/health', (req, res) => {
+  res.sendStatus(200); // retorna status 200 OK
+});
+
+// iniciar servidor
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Backend rodando na porta ${PORT}`);
+});

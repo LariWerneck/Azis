@@ -4,13 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import logoLight from "@/assets/logo-azis.svg";
+import logoDark from "@/assets/logo-azis-branco.svg";
 import { toast } from "@/hooks/use-toast";
+import { useTheme } from "@/hooks/use-theme";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const isDark = useTheme();
 
   const apiUrl = (import.meta.env.VITE_API_URL as string) || "http://localhost:3000";
 
@@ -56,11 +59,11 @@ export default function Login() {
       <div className="hidden lg:flex lg:w-1/2 bg-gradient-hero items-center justify-center p-12">
         <div className="max-w-md">
           <div className="rounded-xl flex items-center justify-center mb-8">
-            <img 
-              src="/src/assets/logo-azis-branco.svg"
-              alt="Azis logo"
-              className="h-30 object-contain"
-            />
+              <img
+                  src={isDark ? logoDark : logoLight}
+                  alt="Azis logo"
+                  className="w-12 h-12 object-contain"
+               />
           </div>
           <h2 className="text-4xl font-heading font-bold text-primary-foreground mb-4">
             Bem-vindo de volta ao Azis
@@ -75,11 +78,11 @@ export default function Login() {
         <div className="w-full max-w-md">
           <div className="lg:hidden flex items-center gap-3 mb-10">
             <div className="rounded-xl flex items-center justify-center mb-8">
-            <img 
-              src="/src/assets/logo-azis-branco.svg"
-              alt="Azis logo"
-              className="h-30 object-contain"
-            />
+              <img
+                  src={isDark ? logoDark : logoLight}
+                  alt="Azis logo"
+                  className="w-12 h-12 object-contain"
+               />
           </div>
             <span className="font-heading font-bold text-xl text-foreground">Azis</span>
           </div>

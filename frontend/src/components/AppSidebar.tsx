@@ -12,11 +12,16 @@ import {
   CreditCard,
   ChevronLeft,
   ChevronRight,
+  Upload,
+  Network,
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { useTheme } from "@/hooks/use-theme";
+import logoLight from "@/assets/logo-azis.svg";
+import logoDark from "@/assets/logo-azis-branco.svg";
+
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -27,6 +32,8 @@ const navItems = [
   { to: "/institution", icon: Building2, label: "Instituição" },
   { to: "/profile", icon: User, label: "Perfil" },
   { to: "/help", icon: HelpCircle, label: "Ajuda" },
+  { to: "/userimport", icon: Upload, label: "Importar Usuários" },
+  { to: "/orgstructure", icon: Network, label: "Estrutura Organizacional" },
 ];
 
 export function AppSidebar() {
@@ -43,8 +50,8 @@ export function AppSidebar() {
     >
       <div className="flex items-center gap-3 px-5 py-5 border-b border-border">
         <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-                <img 
-                  src={isDark ? "src/assets/logo-azis-branco.svg" : "src/assets/logo-azis.svg"}
+                <img
+                  src={isDark ? logoDark : logoLight}
                   alt="Azis logo"
                   className="w-12 h-12 object-contain"
                 />

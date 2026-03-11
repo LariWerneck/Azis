@@ -40,8 +40,3 @@ sudo ln -s /etc/nginx/sites-available/azis.duckdns.org /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 
-# Obtain SSL certificate
-sudo certbot --nginx -d azis.duckdns.org --non-interactive --agree-tos --email your-email@example.com
-
-# Set up auto-renewal
-sudo crontab -l | { cat; echo "0 12 * * * /usr/bin/certbot renew --quiet"; } | sudo crontab -

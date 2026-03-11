@@ -8,7 +8,6 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      # The frontend runs in the browser, so it must call the backend via localhost
       - VITE_API_URL=http://localhost:3000
     depends_on:
       - backend
