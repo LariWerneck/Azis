@@ -1,0 +1,4 @@
+name,email,password,role,position,points,managerEmail;;;;;;;;;
+Linguine,linguine@azis.com,123456,Gestor,Onipresente,1213,linguine@azis.com;;;;;;;;;
+Kaua,kaua@azis.com,123456,Funcionario,Fudido,1213,linguine@azis.com;;;;;;;;;
+Karol,karol@azis.com,123456,Funcionario,Fudida,1213,kaua@azis.com;;;;;;;;;
