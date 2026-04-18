@@ -211,7 +211,7 @@ Ce projet est sous licence Apache 2.0 — voir le fichier [LICENSE](LICENSE) pou
 **Larissa Werneck** — Étudiante en Systèmes d'Information, passionnée de DevOps.
 Spécialisée en Linux, Docker, Terraform et AWS.
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/seu-perfil)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/larissa-werneck-a33447264/)
 [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/LariWerneck)
 
 # Azis — Plataforma de Gamificação para Produtividade no Trabalho
@@ -311,7 +311,7 @@ Este projeto está licenciado sob a Apache License 2.0 — veja o arquivo [LICEN
 **Larissa Werneck** — Estudante de Sistemas de Informação, entusiasta de DevOps.
 Focada em Linux, Docker, Terraform e AWS.
  
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/seu-perfil)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/larissa-werneck-a33447264/)
 [![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/LariWerneck)
 
 
