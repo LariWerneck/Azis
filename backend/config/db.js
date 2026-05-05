@@ -47,6 +47,8 @@ async function initDB() {
       reviewed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
       reviewed_at TIMESTAMP,
       credited BOOLEAN NOT NULL DEFAULT FALSE,
+      deleted BOOLEAN NOT NULL DEFAULT FALSE,
+      deleted_at TIMESTAMP,
       created_at TIMESTAMP DEFAULT NOW(),
       updated_at TIMESTAMP DEFAULT NOW()
     );
@@ -59,6 +61,8 @@ async function initDB() {
   await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reviewed_by INTEGER")
   await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP")
   await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS credited BOOLEAN NOT NULL DEFAULT FALSE")
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deleted BOOLEAN NOT NULL DEFAULT FALSE")
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP")
 
   // Recompensas, resgates e pontos de usuário (conforme contexto solicitado)
   await pool.query(`
@@ -115,8 +119,8 @@ async function initDB() {
   await pool.query("ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS reward_id INTEGER")
   await pool.query("ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS user_id INTEGER")
   await pool.query("ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS points_spent INTEGER")
-  await pool.query("ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS cost INTEGER NOT NULL")
-  await pool.query("ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS voucher_code VARCHAR(100) NOT NULL")
+  await pool.query("ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS cost INTEGER NOT NULL DEFAULT 0")
+  await pool.query("ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS voucher_code VARCHAR(100) NOT NULL DEFAULT ''")
   await pool.query("ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'pending'")
   await pool.query("ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS redeemed_at TIMESTAMP DEFAULT NOW()")
   await pool.query("ALTER TABLE redemptions ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()")
@@ -134,7 +138,7 @@ async function initDB() {
   // Executar migrations SQL para triggers e sincronizações
   // =============================================================================
   try {
-    const migrationPath = path.join(__dirname, '..', 'migrations', '004_add_sync_user_points_trigger.sql')
+    const migrationPath = path.join(__dirname, '..', 'src', 'migrations', '004_add_sync_user_points_trigger.sql')
     if (fs.existsSync(migrationPath)) {
       const migrationSql = fs.readFileSync(migrationPath, 'utf8')
       await pool.query(migrationSql)
@@ -152,6 +156,8 @@ async function initDB() {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS points INTEGER NOT NULL DEFAULT 0")
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS position VARCHAR(255)")
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gestor_id INTEGER")
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS equipe VARCHAR(255)")
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS visibility_settings JSONB DEFAULT '{"show_in_ranking": true, "public_points": true, "feed_achievements": true}'`)
 
   // Linha removida: não existe coluna manager_id na tabela users
 
@@ -200,14 +206,29 @@ async function initDB() {
       }
     }
 
-    // Inicializar user_points com 0
+    // Inicializar user_points com 0 somente para usuários que ainda não têm registro
     await pool.query(
-      `INSERT INTO user_points (user_id, total_points, updated_at) 
-       VALUES ($1, 0, NOW()) 
-       ON CONFLICT (user_id) DO UPDATE SET total_points = 0, updated_at = NOW()`,
+      `INSERT INTO user_points (user_id, total_points, updated_at)
+       VALUES ($1, 0, NOW())
+       ON CONFLICT (user_id) DO NOTHING`,
       [userId]
     )
   }
+
+  // =============================================================================
+  // TABELA DE HISTÓRICO DE PONTOS
+  // =============================================================================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS points_history (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      points INTEGER NOT NULL,
+      task_id INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
+      task_title VARCHAR(255),
+      description TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `)
 
   // =============================================================================
   // TABELAS DE SELOS (BADGES)

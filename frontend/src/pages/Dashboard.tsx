@@ -1,7 +1,6 @@
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@/hooks/use-theme";
-import { getCurrentUser } from "@/data/mock";
 import { getApiUrl, getAuthHeaders } from "@/lib/api";
 import { Chart, CategoryScale, LinearScale, BarElement, BarController, Tooltip, Title } from "chart.js";
 import BadgeClaimModal from "@/components/BadgeClaimModal";
@@ -29,31 +28,11 @@ type LeaderboardEntry = {
   points: number;
 };
 
-const BADGE_FALLBACK: BadgeItem[] = [
-  { id: "primeira-missao", title: "Super Tarefa Bros!", points: 50, unlocked: true, claimed: true, image: "/badges/SELO_-_MARIO-removebg-preview.png" },
-  { id: "velocidade-entrega", title: "Velocidade de Entrega", points: 100, unlocked: true, claimed: true, image: "/badges/SELO_-_SONIC-removebg-preview.png" },
-  { id: "homem-de-aco", title: "O Homem de Aço Ganhou Pontos", points: 150, unlocked: true, claimed: true, image: "/badges/SELO_-_SUPER_MAN-removebg-preview.png" },
-  { id: "camara-segredos", title: "A Câmara dos Segredos Produtivos", points: 300, unlocked: false, claimed: false, image: "/badges/SELO_-_HARRY_POTTER-removebg-preview.png" },
-  { id: "grandes-pontos", title: "Com Grandes Pontos Vêm Grandes Recompensas", points: 400, unlocked: false, claimed: false, image: "/badges/SELO_-_HOMEM_ARANHA-removebg-preview%20(1).png" },
-  { id: "origem-entregas", title: "A Origem das Entregas", points: 500, unlocked: false, claimed: false, image: "/badges/SELO_-_LARA_CROFT-removebg-preview.png" },
-  { id: "recompensa-contra", title: "A Recompensa Contra-Ataca", points: 750, unlocked: false, claimed: false, image: "/badges/SELO_-_STAR_WARS-removebg-preview.png" },
-  { id: "rei-das-metas", title: "O Rei das Metas", points: 875, unlocked: false, claimed: false, image: "/badges/SELO_-_SIMBA-removebg-preview.png" },
-  { id: "lenda-funcionario", title: "A Lenda do Funcionário", points: 1000, unlocked: false, claimed: false, image: "/badges/SELO_-_ZELDA-removebg-preview.png" },
-];
-
-const MONTHLY_FALLBACK: MonthlyStat[] = [
-  { month: "Jan", value: 38 },
-  { month: "Fev", value: 35 },
-  { month: "Mar", value: 55 },
-];
-
-const LEADERBOARD_FALLBACK: LeaderboardEntry[] = [
-  { id: "u1", name: "Ana Silva", role: "Gestor", points: 940 },
-  { id: "u2", name: "Bruno Duarte", role: "Funcionário", points: 860 },
-  { id: "u3", name: "Carla Mendes", role: "Funcionária", points: 780 },
-  { id: "u4", name: "Daniel Reis", role: "Funcionário", points: 640 },
-  { id: "u5", name: "Eduarda Costa", role: "Funcionária", points: 520 },
-];
+type CurrentUser = {
+  id?: string;
+  name?: string;
+  points?: number;
+};
 
 const getInitials = (name: string) =>
   name
@@ -91,14 +70,15 @@ const getPositionStyles = (position: number) => {
 };
 
 export default function Dashboard() {
-  const currentUser = getCurrentUser();
+  const [currentUser, setCurrentUser] = useState<CurrentUser>({});
   const isDark = useTheme();
   const chartCanvas = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<Chart | null>(null);
 
-  const [badges, setBadges] = useState<BadgeItem[]>(BADGE_FALLBACK);
-  const [monthly, setMonthly] = useState<MonthlyStat[]>(MONTHLY_FALLBACK);
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>(LEADERBOARD_FALLBACK);
+  const [userPoints, setUserPoints] = useState<number>(0);
+  const [badges, setBadges] = useState<BadgeItem[]>([]);
+  const [monthly, setMonthly] = useState<MonthlyStat[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [completedTasks, setCompletedTasks] = useState(0);
   const [pendingBadge, setPendingBadge] = useState<BadgeItem | null>(null);
 
@@ -110,13 +90,13 @@ export default function Dashboard() {
   }, [badges, pendingBadge]);
 
   const userName = currentUser.name?.split(" ")[0] ?? "Usuário";
-  const userPoints = Number(currentUser.points ?? 0);
 
   const handleClaimBadge = async (badgeId: string) => {
     try {
       const response = await fetch(getApiUrl(`/api/badges/${badgeId}/claim`), {
         method: "POST",
         headers: getAuthHeaders(),
+        credentials: 'include',
       });
       if (response.ok) {
         setBadges(prev => prev.map(b => b.id === badgeId ? { ...b, claimed: true } : b));
@@ -152,11 +132,11 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const [badgesResponse, statsResponse, leaderboardResponse, tasksResponse] = await Promise.all([
-        fetch(getApiUrl("/api/badges"), { headers: getAuthHeaders() }),
-        fetch(getApiUrl("/api/stats/monthly"), { headers: getAuthHeaders() }),
-        fetch(getApiUrl("/api/leaderboard"), { headers: getAuthHeaders() }),
-        fetch(getApiUrl("/api/tasks"), { headers: getAuthHeaders() }),
+      const [badgesResponse, statsResponse, leaderboardResponse, profileResponse] = await Promise.all([
+        fetch(getApiUrl("/api/badges"), { headers: getAuthHeaders(), credentials: 'include' }),
+        fetch(getApiUrl("/api/stats/monthly"), { headers: getAuthHeaders(), credentials: 'include' }),
+        fetch(getApiUrl("/api/rewards/leaderboard"), { headers: getAuthHeaders(), credentials: 'include' }),
+        fetch(getApiUrl("/api/users/me"), { headers: getAuthHeaders(), credentials: 'include' }),
       ]);
 
       if (badgesResponse.ok) {
@@ -191,30 +171,42 @@ export default function Dashboard() {
 
       if (leaderboardResponse.ok) {
         const payload = await leaderboardResponse.json();
-        const raw = payload?.leaderboard ?? payload;
+        const raw = payload?.data ?? payload?.leaderboard ?? payload;
         if (Array.isArray(raw) && raw.length > 0) {
           setLeaderboard(
-            raw.map((item: any, index: number) => ({
-              id: item.id?.toString() ?? `user-${index}`,
-              name: item.name ?? item.fullName ?? "Usuário",
-              role: item.role ?? item.position ?? "Funcionário",
-              points: Number(item.points ?? item.score ?? 0),
-            })),
+            [...raw]
+              .sort((a: any, b: any) => Number(b.total_points ?? b.points ?? b.score ?? 0) - Number(a.total_points ?? a.points ?? a.score ?? 0))
+              .map((item: any, index: number) => ({
+                id: String(item.user_id ?? item.id ?? `user-${index}`),
+                name: item.name ?? item.fullName ?? "Usuário",
+                role: item.role ?? item.position ?? "Funcionário",
+                points: Number(item.total_points ?? item.points ?? item.score ?? 0),
+              })),
           );
         }
       }
 
-      if (tasksResponse.ok) {
-        const payload = await tasksResponse.json();
-        const rawTasks = payload?.tasks ?? payload;
-        if (Array.isArray(rawTasks)) {
-          setCompletedTasks(
-            rawTasks.filter((task: any) => task.status === "approved" || task.status === "done").length,
-          );
+      if (profileResponse.ok) {
+        const payload = await profileResponse.json();
+        setCompletedTasks(Number(payload.tasks_count ?? 0));
+
+        const stored = localStorage.getItem("azis_user");
+        const userData = {
+          id: String(payload.id ?? payload.user_id ?? payload.uuid ?? ""),
+          name: payload.name ?? payload.fullName ?? payload.username ?? "Usuário",
+          points: Number(payload.points ?? payload.total_points ?? payload.score ?? 0),
+        };
+
+        setCurrentUser(userData);
+        setUserPoints(userData.points);
+
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          localStorage.setItem("azis_user", JSON.stringify({ ...parsed, ...payload }));
         }
       }
     } catch (error) {
-      console.error("Dashboard load error:", error);
+      console.error("Error loading dashboard data:", error);
     }
   };
 

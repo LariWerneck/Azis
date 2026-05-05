@@ -31,6 +31,7 @@ export default function Ranking() {
         setLoading(true);
         const res = await fetch(getApiUrl("/api/rewards/leaderboard"), {
           headers: getAuthHeaders(),
+          credentials: 'include',
         });
 
         if (!res.ok) throw new Error("Erro ao buscar ranking");

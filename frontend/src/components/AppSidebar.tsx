@@ -14,7 +14,10 @@ import {
 import { useEffect, useState } from "react";
 import { getApiUrl, getAuthHeaders } from "@/lib/api";
 import { getCurrentUser } from "@/data/mock";
+import { useTheme } from "@/hooks/use-theme";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import logoDark from "@/assets/logo-azis-branco.svg";
+import logoLight from "@/assets/logo-azis.svg";
 
 function getNavItemsByRole(role: string) {
   const items = [
@@ -49,15 +52,41 @@ function getInitials(name: string) {
 export function AppSidebar() {
   const location = useLocation();
   const [feedBadgeCount, setFeedBadgeCount] = useState(0);
-  const currentUser = getCurrentUser();
+  const [currentUser, setCurrentUser] = useState(getCurrentUser());
+  const isDark = useTheme();
   const navItems = getNavItemsByRole(currentUser?.role ?? "funcionario");
 
   useEffect(() => {
     let isMounted = true;
 
+    async function refreshCurrentUser() {
+      try {
+        const response = await fetch(getApiUrl("/api/users/me"), {
+          headers: getAuthHeaders(),
+          credentials: 'include',
+        });
+
+        if (!response.ok || !isMounted) return;
+
+        const userData = await response.json();
+        const updatedUser = { ...getCurrentUser(), ...userData };
+        setCurrentUser(updatedUser);
+
+        const stored = localStorage.getItem("azis_user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          localStorage.setItem("azis_user", JSON.stringify({ ...parsed, ...userData }));
+        }
+      } catch (error) {
+        console.error("Error refreshing current user:", error);
+      }
+    }
+
+    refreshCurrentUser();
+
     async function fetchFeedNotifications() {
       try {
-        const response = await fetch(getApiUrl("/api/feed?limit=50"), { headers: getAuthHeaders() });
+        const response = await fetch(getApiUrl("/api/feed?limit=50"), { headers: getAuthHeaders(), credentials: 'include' });
         if (!response.ok || !isMounted) return;
         const payload = await response.json();
         const raw = payload?.feed ?? payload;
@@ -80,7 +109,7 @@ export function AppSidebar() {
     <aside className="flex flex-col h-screen w-[220px] bg-[color:var(--sidebar-background)] border-r border-[color:var(--sidebar-border)] text-[color:var(--sidebar-foreground)] sticky top-0">
       <div className="flex items-center gap-3 px-5 h-16 border-b border-[color:var(--sidebar-border)]">
         <img
-          src={logoDark}
+          src={isDark ? logoDark : logoLight}
           alt="Azis logo"
           className="w-10 h-10 object-contain flex-shrink-0"
         />
@@ -131,12 +160,15 @@ export function AppSidebar() {
             <div className="text-[11px] text-[color:var(--muted)]">{getRoleLabel(currentUser.role)}</div>
           </div>
         </div>
-        <Link
-          to="/"
-          className="mt-4 block text-sm font-medium text-[color:var(--muted)] hover:text-[color:var(--text)]"
-        >
-          Sair
-        </Link>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <ThemeToggle />
+          <Link
+            to="/"
+            className="text-sm font-medium text-[color:var(--muted)] hover:text-[color:var(--text)]"
+          >
+            Sair
+          </Link>
+        </div>
       </div>
     </aside>
   );

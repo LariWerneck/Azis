@@ -21,7 +21,7 @@ import EvidenceModal from "@/components/EvidenceModal";
 import ReviewModal from "@/components/ReviewModal";
 import { getApiUrl, getAuthHeaders } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
-import mascotVideo from "@/assets/mascot.mp4";
+import mascotVideo from "@/assets/mascot  new.gif";
 
 const columns: { id: TaskStatus; title: string; color: string }[] = [
   { id: "todo", title: "A Fazer", color: "bg-info" },
@@ -30,6 +30,38 @@ const columns: { id: TaskStatus; title: string; color: string }[] = [
   { id: "approved", title: "Aprovado", color: "bg-success" },
   { id: "rejected", title: "Reprovado", color: "bg-destructive" },
 ];
+
+function parseLocalDate(deadline: string | Date) {
+  if (deadline instanceof Date) {
+    return deadline;
+  }
+
+  const normalized = deadline.trim();
+
+  // ISO date only: YYYY-MM-DD
+  const simpleDateMatch = normalized.match(/^([0-9]{4})-([0-9]{2})-([0-9]{2})$/);
+  if (simpleDateMatch) {
+    const [, year, month, day] = simpleDateMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  // ISO datetime: YYYY-MM-DDTHH:mm:ssZ or with timezone offset
+  const isoDatetimeMatch = normalized.match(/^([0-9]{4}-[0-9]{2}-[0-9]{2})T.*$/);
+  if (isoDatetimeMatch) {
+    return new Date(normalized);
+  }
+
+  // Fallback to browser parser for any other string format
+  const fallback = new Date(normalized);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+}
+
+function formatKanbanDeadline(deadline?: string | null) {
+  if (!deadline) return "Sem data";
+  const date = parseLocalDate(deadline);
+  if (!date) return "Sem data";
+  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
 
 function TaskCard({ task, isDragging, onReviewClick, onDelete }: { task: Task; isDragging?: boolean; onReviewClick?: (task: Task) => void; onDelete?: (task: Task) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id });
@@ -41,7 +73,7 @@ function TaskCard({ task, isDragging, onReviewClick, onDelete }: { task: Task; i
   };
 
   const currentUser = getCurrentUser();
-  const canReview = currentUser.nivel >= 2 && task.status === "done";
+  const canReview = currentUser.nivel >= 2 && task.status === "done" && task.gestorId === currentUser.id;
   const canMarkDone = currentUser.nivel === 1 && task.assignee.id === currentUser.id && task.status === "in_progress";
   const canDelete = (currentUser.role === "gestor" || currentUser.role === "admin") && (task.status === "approved" || task.status === "rejected");
 
@@ -101,7 +133,7 @@ function TaskCard({ task, isDragging, onReviewClick, onDelete }: { task: Task; i
             <div className="flex items-center gap-1">
               <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">
-                {new Date(task.deadline).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+                {formatKanbanDeadline(task.deadline)}
               </span>
             </div>
           </div>
@@ -153,6 +185,7 @@ export default function Kanban() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [showMascot, setShowMascot] = useState(false);
+  const [pendingDoneToast, setPendingDoneToast] = useState<{ title: string; description: string } | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -164,27 +197,42 @@ export default function Kanban() {
     ? tasks.filter(task => task.assignee.id === currentUser.id)
     : tasks;
 
-  const mapApiTaskToTask = (task: any): Task => ({
-    id: task.id?.toString() ?? "",
-    title: task.title,
-    description: task.description,
-    status: task.status,
-    points: task.points,
-    deadline: task.deadline,
-    created_at: task.created_at,
-    assignee: {
-      id: task.assignee_id?.toString() ?? "",
-      name: task.assignee_name ?? "",
-      email: task.assignee_email ?? "",
-      role: task.assignee_role ?? "funcionario",
-      nivel: currentUser?.nivel ?? 1,
-      points: 0,
-      institution_id: "",
-      position: "",
-      gestorId: null,
-      avatar: ""
-    },
-  });
+  const mapApiTaskToTask = (task: any): Task => {
+    let deadlineValue: string = "";
+
+    if (task.deadline instanceof Date) {
+      deadlineValue = task.deadline.toISOString().split("T")[0];
+    } else if (typeof task.deadline === "string") {
+      const normalized = task.deadline.trim();
+      if (normalized.length > 0) {
+        deadlineValue = normalized.split("T")[0];
+      }
+    }
+
+    return {
+      id: task.id?.toString() ?? "",
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      points: task.points,
+      deadline: deadlineValue,
+      created_at: task.created_at,
+      gestorId: task.gestor_id?.toString() ?? null,
+      createdBy: task.created_by?.toString() ?? null,
+      assignee: {
+        id: task.assignee_id?.toString() ?? "",
+        name: task.assignee_name ?? "",
+        email: task.assignee_email ?? "",
+        role: task.assignee_role ?? "funcionario",
+        nivel: currentUser?.nivel ?? 1,
+        points: 0,
+        institution_id: "",
+        position: "",
+        gestorId: null,
+        avatar: "",
+      },
+    };
+  };
 
   const loadTasks = async () => {
     setLoading(true);
@@ -196,6 +244,7 @@ export default function Kanban() {
           "Content-Type": "application/json",
           ...getAuthHeaders(),
         },
+        credentials: 'include',
       });
 
       const data = await response.json();
@@ -213,7 +262,7 @@ export default function Kanban() {
     }
   };
 
-  const handleCreateTask = async (data: { title: string; description: string; assignedTo: string; points: number }) => {
+  const handleCreateTask = async (data: { title: string; description: string; assignedTo: string; points: number; deadline?: string }) => {
     if (data.points < 1 || data.points > 1000) {
       toast({ title: "Erro", description: "Os pontos devem estar entre 1 e 1000." });
       return;
@@ -230,8 +279,10 @@ export default function Kanban() {
           title: data.title,
           description: data.description,
           points: data.points,
+          deadline: data.deadline || null,
           assignee_id: Number(data.assignedTo),
         }),
+        credentials: 'include',
       });
 
       const responseData = await response.json();
@@ -258,6 +309,7 @@ export default function Kanban() {
           ...getAuthHeaders(),
         },
         body: JSON.stringify(body),
+        credentials: 'include',
       });
 
       const responseData = await response.json();
@@ -269,10 +321,10 @@ export default function Kanban() {
         prev.map((t) => (t.id === taskId ? { ...t, status: responseData.task.status, evidence: responseData.task.evidence } : t)),
       );
 
-      // Mostra toast diferenciado para anexação de tarefa
+      // Adia a mensagem até a conclusão do vídeo quando a tarefa for marcada como concluída.
       if (status === 'done') {
-        toast({
-          title: "Tarefa Enviada",
+        setPendingDoneToast({
+          title: "🎉 Tarefa Enviada",
           description: responseData.message,
         });
       }
@@ -299,14 +351,15 @@ export default function Kanban() {
   const handleEvidenceSubmit = async (evidence: string) => {
     if (!selectedTask) return;
 
+    setShowMascot(true);
     setActionLoading(true);
     try {
       await updateTaskStatus(selectedTask.id, "done", evidence);
       setEvidenceModalOpen(false);
       setSelectedTask(null);
-      toast({ title: "Sucesso", description: "Tarefa enviada para revisão!" });
     } catch (error) {
       console.error("Error submitting evidence:", error);
+      setShowMascot(false);
     } finally {
       setActionLoading(false);
     }
@@ -324,6 +377,7 @@ export default function Kanban() {
           ...getAuthHeaders(),
         },
         body: JSON.stringify({ action, feedback }),
+        credentials: 'include',
       });
 
       const responseData = await response.json();
@@ -563,42 +617,40 @@ export default function Kanban() {
         <>
           <style>{`
             @keyframes mascotFadeIn {
-              from { opacity: 0; transform: scale(0.8); }
-              to { opacity: 1; transform: scale(1); }
-            }
-            @keyframes mascotFadeOut {
-              from { opacity: 1; transform: scale(1); }
-              to { opacity: 0; transform: scale(0.8); }
+              from { opacity: 0; transform: translateY(20px) scale(0.95); }
+              to { opacity: 1; transform: translateY(0) scale(1); }
             }
           `}</style>
           <div
             style={{
               position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: 'none',
+              right: '1rem',
+              bottom: '1rem',
+              width: '380px',
+              maxWidth: 'calc(100vw - 2rem)',
+              borderRadius: '1rem',
+              overflow: 'hidden',
               zIndex: 9999,
               animation: 'mascotFadeIn 0.3s ease-out',
-              backdropFilter: 'blur(10px)',
-              WebkitBackdropFilter: 'blur(10px)',
-              background: 'rgba(0, 0, 0, 0.45)'
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.2)',
             }}
           >
-            <video
+            <img
               src={mascotVideo}
-              autoPlay
-              muted
-              onEnded={() => setTimeout(() => setShowMascot(false), 500)}
+              alt="Mascote"
+              onLoad={() => {
+                setTimeout(() => {
+                  setShowMascot(false);
+                  if (pendingDoneToast) {
+                    toast(pendingDoneToast);
+                    setPendingDoneToast(null);
+                  }
+                }, 8000);
+              }}
               style={{
-                width: '350px',
-                maxWidth: '60vw',
-                borderRadius: '1rem',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
+                width: '100%',
+                height: 'auto',
+                display: 'block',
               }}
             />
           </div>

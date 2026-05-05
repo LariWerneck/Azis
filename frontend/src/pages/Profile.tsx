@@ -1,11 +1,40 @@
-import { useState, useRef } from "react";
+﻿import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Trophy, Star, Award, Zap, Edit2 } from "lucide-react";
-import { getCurrentUser } from "@/data/mock";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Edit2 } from "lucide-react";
 import { toast } from "sonner";
+import { getApiUrl, getAuthHeaders } from "@/lib/api";
+
+interface UserProfile {
+  id: number;
+  name: string;
+  email: string;
+  role: "admin" | "gestor" | "funcionario";
+  nivel: number;
+  position: string | null;
+  points: number;
+  gestorId: number | null;
+  badges_count: number;
+  tasks_count: number;
+  ranking_position: number | null;
+}
+
+interface PointsHistoryItem {
+  id: number;
+  title: string;
+  points: number;
+  completed_at: string;
+}
+
+const roleLabelMap: Record<string, string> = {
+  admin: "Admin",
+  gestor: "Gestor",
+  funcionario: "Funcionário",
+};
 
 const AVAILABLE_EMOJIS = [
   "👩", "👩‍🦰", "👩‍🦱", "👩‍🦲", "👩‍🦳", "👨", "👨‍🦰", "👨‍🦱", "👨‍🦲", "👨‍🦳",
@@ -13,26 +42,90 @@ const AVAILABLE_EMOJIS = [
   "👨‍💻", "👩‍💻", "👨‍🎓", "👩‍🎓", "👨‍🎨", "👩‍🎨", "🧑‍🚀", "🧑‍🎬", "🧑‍🎤", "😊"
 ];
 
-const pointsHistory = [
-  { date: "06/03/2026", desc: "Setup CI/CD pipeline", points: 60, icon: "📊" },
-  { date: "04/03/2026", desc: "Code review módulo auth", points: 25, icon: "🔍" },
-  { date: "05/03/2026", desc: "Otimizar queries do banco", points: 45, icon: "⚙️" },
-  { date: "03/03/2026", desc: "Documentação da API", points: 30, icon: "📚" },
-  { date: "02/03/2026", desc: "Desbloqueou selo 'Velocidade'", points: 100, icon: "🏅" },
-  { date: "01/03/2026", desc: "Primeira tarefa concluída", points: 15, icon: "✅" },
-];
+const LoadingSkeleton = () => (
+  <div className="p-6 lg:p-8 space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <Skeleton className="h-96 rounded-2xl" />
+      <div className="lg:col-span-2 space-y-6">
+        <Skeleton className="h-52 rounded-2xl" />
+        <Skeleton className="h-40 rounded-2xl" />
+      </div>
+    </div>
+    <Skeleton className="h-64 rounded-2xl" />
+  </div>
+);
 
 export default function Profile() {
-  const currentUser = getCurrentUser();
+  const queryClient = useQueryClient();
   const [selectedEmoji, setSelectedEmoji] = useState("👩‍💼");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [formData, setFormData] = useState({
-    name: currentUser.name,
-    email: currentUser.email,
-    cargo: "CEO",
-    equipe: "Azis",
-  });
+  const [formData, setFormData] = useState({ name: "", email: "", position: "" });
   const pickerRef = useRef<HTMLDivElement>(null);
+
+  const { data: profile, isLoading: loadingProfile, error: profileError } = useQuery<UserProfile>({
+    queryKey: ["my-profile"],
+    queryFn: async () => {
+      const res = await fetch(getApiUrl("/api/users/me"), {
+        headers: { ...getAuthHeaders() },
+      });
+      if (!res.ok) throw new Error("Erro ao buscar perfil");
+      return res.json();
+    },
+  });
+
+  const { data: pointsHistory = [], isLoading: loadingHistory } = useQuery<PointsHistoryItem[]>({
+    queryKey: ["my-points-history"],
+    queryFn: async () => {
+      const res = await fetch(getApiUrl("/api/users/me/points-history"), {
+        headers: { ...getAuthHeaders() },
+      });
+      if (!res.ok) throw new Error("Erro ao buscar histórico");
+      return res.json();
+    },
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: async (data: { name: string; email: string; position: string }) => {
+      const res = await fetch(getApiUrl("/api/users/me"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Erro ao salvar");
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["my-profile"] });
+      toast.success("Perfil atualizado com sucesso!");
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : "Erro ao salvar";
+      toast.error(message);
+    },
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        name: profile.name,
+        email: profile.email,
+        position: profile.position ?? "",
+      });
+    }
+  }, [profile]);
+
+  const handleSave = () => {
+    saveMutation.mutate({
+      name: formData.name,
+      email: formData.email,
+      position: formData.position,
+    });
+  };
 
   const handleEmojiSelect = (emoji: string) => {
     setSelectedEmoji(emoji);
@@ -40,29 +133,60 @@ export default function Profile() {
     toast.success("Avatar atualizado com sucesso!");
   };
 
-  const handleSave = () => {
-    toast.success("✓ Salvo");
-    setTimeout(() => {}, 2000);
+  const formatDate = (value?: string | null) => {
+    if (!value) return "Data indisponível";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Data indisponível";
+    return date.toLocaleDateString("pt-BR");
   };
 
   const stats = [
-    { label: "Pontos", value: (currentUser.points ?? 0).toLocaleString(), icon: "⭐", color: "text-yellow-400" },
-    { label: "Ranking", value: "#1", icon: "🏆", color: "text-purple-400" },
-    { label: "Selos", value: "12", icon: "🎖️", color: "text-green-400" },
-    { label: "Tarefas", value: "62", icon: "⚡", color: "text-blue-400" },
+    {
+      label: "Pontos",
+      value: (profile?.points ?? 0).toLocaleString("pt-BR"),
+      color: "text-yellow-400",
+    },
+    {
+      label: "Ranking",
+      value: profile?.ranking_position ? `#${profile.ranking_position}` : "—",
+      color: "text-purple-400",
+    },
+    {
+      label: "Selos",
+      value: String(profile?.badges_count ?? 0),
+      color: "text-green-400",
+    },
+    {
+      label: "Tarefas",
+      value: String(profile?.tasks_count ?? 0),
+      color: "text-blue-400",
+    },
   ];
+
+  if (loadingProfile) {
+    return <LoadingSkeleton />;
+  }
+
+  if (profileError || !profile) {
+    return (
+      <div className="p-6 lg:p-8 min-h-screen bg-[color:var(--background)] flex items-center justify-center">
+        <Card className="border-red-500/50 bg-red-500/10 max-w-md w-full">
+          <CardContent className="pt-6">
+            <p className="text-red-400 text-center font-semibold">
+              {profileError instanceof Error ? profileError.message : "Erro ao carregar perfil"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8 min-h-screen bg-[color:var(--background)] flex flex-col">
-      {/* BLOCO 1 - Hero Card + Dados Pessoais + Visibilidade */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8 flex-grow">
-        {/* HERO CARD - Coluna Esquerda */}
         <Card className="border-[color:var(--border)] bg-[color:var(--card)] lg:col-span-1 relative overflow-hidden flex flex-col">
-          {/* Glow Background */}
           <div className="absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br from-purple-500/20 to-transparent rounded-full blur-3xl" />
-          
           <CardContent className="p-6 relative z-10 flex-1 flex flex-col">
-            {/* Avatar com Picker */}
             <div className="mb-6 flex justify-center relative">
               <div className="relative">
                 <div className="w-32 h-32 rounded-2xl bg-gradient-primary flex items-center justify-center text-6xl border-4 border-purple-500/30 shadow-lg">
@@ -76,8 +200,6 @@ export default function Profile() {
                   <Edit2 className="w-4 h-4" />
                 </button>
               </div>
-
-              {/* Emoji Picker Inline */}
               {showEmojiPicker && (
                 <div
                   ref={pickerRef}
@@ -96,26 +218,20 @@ export default function Profile() {
                   </div>
                 </div>
               )}
-
-              {/* Badge de Nível */}
-              <div className="absolute -top-3 -right-3 bg-purple-500 px-3 py-1 rounded-full text-xs font-bold text-white hidden">
-                Nível 5 — Especialista
-              </div>
+              {profile.nivel && (
+                <div className="absolute -top-3 -right-3 bg-purple-500 px-3 py-1 rounded-full text-xs font-bold text-white">
+                  Nível {profile.nivel}
+                </div>
+              )}
             </div>
-
-            {/* Nome */}
             <h2 className="text-2xl font-heading font-bold text-foreground text-center mb-2">
-              {currentUser.name}
+              {profile.name}
             </h2>
-
-            {/* Cargo como Pill */}
             <div className="flex justify-center mb-6">
               <span className="inline-flex items-center rounded-full bg-blue-500/20 px-3 py-1 text-xs font-bold text-blue-400 border border-blue-500/30">
-                Gestor
+                {roleLabelMap[profile?.role ?? "funcionario"]}
               </span>
             </div>
-
-            {/* Stats Grid 2x2 */}
             <div className="grid grid-cols-2 gap-3 mb-6">
               {stats.map((stat, i) => (
                 <div key={i} className="rounded-lg bg-[color:var(--surface2)] p-3 text-center border border-[color:var(--border)]">
@@ -126,26 +242,10 @@ export default function Profile() {
                 </div>
               ))}
             </div>
-
-            {/* Level Progress Bar */}
-            <div className="space-y-2 mt-auto hidden">
-              <div className="flex items-center justify-between text-xs text-[color:var(--muted)]">
-                <span className="font-bold">Nível 5</span>
-                <span className="font-bold">250 / 500 pts</span>
-              </div>
-              <div className="h-2 bg-[color:var(--surface2)] rounded-full overflow-hidden border border-[color:var(--border)]">
-                <div className="h-full bg-gradient-primary w-1/2" />
-              </div>
-              <p className="text-xs text-[color:var(--muted)] text-center mt-2">
-                Faltam 250 pontos para alcançar Nível 6
-              </p>
-            </div>
           </CardContent>
         </Card>
 
-        {/* COLUNA DIREITA - 2 Cards Empilhados */}
         <div className="lg:col-span-2 space-y-6 flex flex-col">
-          {/* Card Dados Pessoais */}
           <Card className="border-[color:var(--border)] bg-[color:var(--card)]">
             <CardHeader>
               <CardTitle className="font-heading">Dados Pessoais</CardTitle>
@@ -164,6 +264,7 @@ export default function Profile() {
                   <Label className="text-xs font-semibold text-[color:var(--muted)] uppercase">Email</Label>
                   <Input
                     value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     type="email"
                     className="rounded-lg bg-[color:var(--surface2)] border-[color:var(--border)]"
                   />
@@ -173,83 +274,69 @@ export default function Profile() {
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-[color:var(--muted)] uppercase">Cargo</Label>
                   <Input
-                    value={formData.cargo}
+                    value={formData.position}
+                    onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                     className="rounded-lg bg-[color:var(--surface2)] border-[color:var(--border)]"
                   />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold text-[color:var(--muted)] uppercase">Equipe</Label>
                   <Input
-                    value={formData.equipe}
-                    className="rounded-lg bg-[color:var(--surface2)] border-[color:var(--border)]"
+                    value={roleLabelMap[profile?.role ?? "funcionario"]}
+                    readOnly
+                    disabled
+                    className="rounded-lg bg-[color:var(--surface2)] border-[color:var(--border)] opacity-60 cursor-not-allowed"
                   />
                 </div>
               </div>
               <Button
                 onClick={handleSave}
+                disabled={saveMutation.isPending}
                 className="w-full bg-gradient-primary text-white rounded-lg font-bold"
               >
-                Salvar alterações
+                {saveMutation.isPending ? "Salvando..." : "Salvar alterações"}
               </Button>
             </CardContent>
           </Card>
 
-          {/* Card Visibilidade */}
-          <Card className="border-[color:var(--border)] bg-[color:var(--card)] flex-1 flex flex-col">
-            <CardHeader>
-              <CardTitle className="font-heading">Visibilidade</CardTitle>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {[
-                  { icon: Trophy, label: "Aparecer no ranking", desc: "Outros podem ver sua posição no ranking geral" },
-                  { icon: Star, label: "Pontuação pública", desc: "Mostrar seus pontos no perfil público" },
-                  { icon: Zap, label: "Feed de conquistas", desc: "Compartilhar suas conquistas no feed de equipe" },
-                ].map((item, i) => {
-                  const Icon = item.icon;
-                  return (
-                    <div key={i} className="rounded-lg border border-purple-500/30 bg-purple-500/10 p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <Icon className="w-5 h-5 text-purple-400" />
-                        <span className="inline-flex items-center rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-bold text-green-400">
-                          Ativo
-                        </span>
-                      </div>
-                      <h4 className="text-sm font-bold text-foreground mb-1">{item.label}</h4>
-                      <p className="text-xs text-[color:var(--muted)]">{item.desc}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
 
-      {/* BLOCO 2 - Histórico de Pontos */}
       <Card className="border-[color:var(--border)] bg-[color:var(--card)] w-full">
         <CardHeader>
           <CardTitle className="font-heading">📋 Histórico de Pontos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {pointsHistory.map((entry, i) => (
-              <div key={i} className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface2)] p-4">
-                <div className="flex items-start gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-lg flex-shrink-0">
-                    {entry.icon}
+          {loadingHistory ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-24 rounded-lg" />
+              ))}
+            </div>
+          ) : pointsHistory.length === 0 ? (
+            <p className="text-sm text-[color:var(--muted)] text-center py-8">Nenhuma tarefa concluída ainda.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {pointsHistory.map((entry) => (
+                <div key={entry.id} className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface2)] p-4">
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-lg flex-shrink-0">
+                      ⚡
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-foreground">{entry.title}</p>
+                      <p className="text-xs text-[color:var(--muted)]">
+                        {formatDate(entry.completed_at)}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-foreground">{entry.desc}</p>
-                    <p className="text-xs text-[color:var(--muted)]">{entry.date}</p>
+                  <div className="text-right">
+                    <p className="text-lg font-heading font-bold text-purple-400">+{entry.points} ⭐</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-heading font-bold text-purple-400">+{entry.points} ⭐</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -5,7 +5,7 @@ async function getUserBadges(req, res) {
         const userId = req.user.id
 
         // Sincronização proativa: garantir que selos antigos sejam liberados se o usuário já tiver pontos
-        const userPointsResult = await pool.query('SELECT points FROM users WHERE id = $1', [userId])
+        const userPointsResult = await pool.query('SELECT COALESCE(total_points, 0) AS points FROM user_points WHERE user_id = $1', [userId])
         const currentPoints = userPointsResult.rows[0]?.points || 0
         await checkAndUnlockBadges(userId, currentPoints)
 

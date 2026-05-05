@@ -28,13 +28,6 @@ const queryClient = new QueryClient();
 const App = () => {
   const currentUser = getCurrentUser();
 
-  // Force dark mode
-  useEffect(() => {
-    document.documentElement.classList.add("dark");
-    document.documentElement.dataset.theme = "dark";
-    localStorage.setItem("theme", "dark");
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

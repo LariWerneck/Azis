@@ -6,11 +6,36 @@ const { sanitizeUsers } = require('../utils/sanitizer')
 async function getCurrentUser(req, res) {
   try {
     const result = await pool.query(
-      `SELECT u.id, u.name, u.email, u.role, u.nivel, u.position, u.points, u.gestor_id AS "gestorId",
-              COALESCE(up.total_points, 0) AS total_points
-       FROM users u
-       LEFT JOIN user_points up ON u.id = up.user_id
-       WHERE u.id = $1`,
+      `SELECT
+        u.id,
+        u.name,
+        u.email,
+        u.role,
+        u.nivel,
+        u.position,
+        u.gestor_id AS "gestorId",
+        COALESCE(up.total_points, 0) AS points,
+        (
+          SELECT COUNT(*)::int
+          FROM user_badges ub
+          WHERE ub.user_id = u.id
+        ) AS badges_count,
+        (
+          SELECT COUNT(*)::int
+          FROM tasks t
+          WHERE t.assignee_id = u.id AND t.status IN ('approved', 'done')
+        ) AS tasks_count,
+        (
+          SELECT ranking
+          FROM (
+            SELECT user_id, RANK() OVER (ORDER BY total_points DESC)::int AS ranking
+            FROM user_points
+          ) r
+          WHERE r.user_id = u.id
+        ) AS ranking_position
+      FROM users u
+      LEFT JOIN user_points up ON u.id = up.user_id
+      WHERE u.id = $1`,
       [req.user.id]
     )
 
@@ -20,9 +45,6 @@ async function getCurrentUser(req, res) {
 
     const user = result.rows[0]
     user.role = normalizeRole(user.role)
-    // Usar total_points como points para consistência
-    user.points = user.total_points
-    delete user.total_points
 
     return res.status(200).json(user)
   } catch (error) {
@@ -276,6 +298,201 @@ async function createUsers(req, res) {
   }
 }
 
+// ========================================
+// ROTAS DE PERFIL DO USUÁRIO AUTENTICADO
+// ========================================
+
+async function getMyProfile(req, res) {
+  try {
+    const userId = req.user.id
+
+    // Buscar dados do usuário
+    const userResult = await pool.query(
+      `SELECT u.id, u.name, u.email, u.role, u.nivel, u.position, u.equipe,
+              COALESCE(up.total_points, 0) AS total_points,
+              u.visibility_settings
+       FROM users u
+       LEFT JOIN user_points up ON u.id = up.user_id
+       WHERE u.id = $1`,
+      [userId]
+    )
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' })
+    }
+
+    const user = userResult.rows[0]
+
+    // Buscar posição no ranking
+    const rankingResult = await pool.query(
+      `SELECT COUNT(*) + 1 as ranking_position 
+       FROM user_points 
+       WHERE total_points > (SELECT total_points FROM user_points WHERE user_id = $1)`,
+      [userId]
+    )
+    const rankingPosition = rankingResult.rows[0]?.ranking_position || 1
+
+    // Buscar quantidade de selos conquistados
+    const badgesResult = await pool.query(
+      `SELECT COUNT(*) as badges_count 
+       FROM user_badges 
+       WHERE user_id = $1 AND claimed = true`,
+      [userId]
+    )
+    const badgesCount = badgesResult.rows[0]?.badges_count || 0
+
+    // Buscar quantidade de tarefas concluídas
+    const tasksResult = await pool.query(
+      `SELECT COUNT(*) as tasks_count 
+       FROM tasks 
+       WHERE assignee_id = $1 AND status = 'approved'`,
+      [userId]
+    )
+    const tasksCount = tasksResult.rows[0]?.tasks_count || 0
+
+    const profile = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: normalizeRole(user.role),
+      nivel: user.nivel,
+      cargo: user.position,
+      equipe: user.equipe || 'Sem equipe',
+      total_points: user.total_points,
+      ranking_position: rankingPosition,
+      badges_count: badgesCount,
+      tasks_count: tasksCount,
+      visibility_settings: user.visibility_settings || { show_in_ranking: true, public_points: true, feed_achievements: true }
+    }
+
+    return res.status(200).json(profile)
+  } catch (error) {
+    console.error('getMyProfile error:', error)
+    return res.status(500).json({ error: 'Erro interno do servidor' })
+  }
+}
+
+async function updateMyProfile(req, res) {
+  try {
+    const { name, email, position } = req.body
+    const userId = req.user.id
+
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Nome e email são obrigatórios' })
+    }
+
+    const emailCheck = await pool.query(
+      'SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND id <> $2',
+      [email, userId]
+    )
+    if (emailCheck.rows.length > 0) {
+      return res.status(409).json({ error: 'Email já está em uso por outro usuário' })
+    }
+
+    const result = await pool.query(
+      `UPDATE users
+       SET name = $1, email = $2, position = $3
+       WHERE id = $4
+       RETURNING id, name, email, role, nivel, position, gestor_id AS "gestorId"`,
+      [name.trim(), email.trim().toLowerCase(), position || null, userId]
+    )
+
+    return res.status(200).json(result.rows[0])
+  } catch (error) {
+    console.error('updateMyProfile error:', error)
+    return res.status(500).json({ error: 'Erro interno do servidor' })
+  }
+}
+
+async function getMyPointsHistory(req, res) {
+  try {
+    const result = await pool.query(
+      `SELECT t.id, t.title, t.points, COALESCE(t.reviewed_at, t.updated_at) AS completed_at
+       FROM tasks t
+       WHERE t.assignee_id = $1 AND t.status IN ('approved', 'concluida')
+       ORDER BY COALESCE(t.reviewed_at, t.updated_at) DESC
+       LIMIT 10`,
+      [req.user.id]
+    )
+    return res.status(200).json(result.rows)
+  } catch (error) {
+    console.error('getMyPointsHistory error:', error)
+    return res.status(500).json({ error: 'Erro interno do servidor' })
+  }
+}
+
+async function getPointsHistory(req, res) {
+  try {
+    const userId = req.user.id
+    const limit = req.query.limit ? parseInt(req.query.limit) : 10
+
+    const result = await pool.query(
+      `SELECT id, task_title, points, created_at 
+       FROM points_history 
+       WHERE user_id = $1 
+       ORDER BY created_at DESC 
+       LIMIT $2`,
+      [userId, limit]
+    )
+
+    const history = result.rows.map(row => ({
+      id: row.id,
+      task_title: row.task_title || 'Tarefa sem título',
+      points: row.points,
+      created_at: row.created_at
+    }))
+
+    return res.status(200).json(history)
+  } catch (error) {
+    console.error('getPointsHistory error:', error)
+    return res.status(500).json({ error: 'Erro interno do servidor' })
+  }
+}
+
+async function updateVisibility(req, res) {
+  try {
+    const userId = req.user.id
+    const { show_in_ranking, public_points, feed_achievements } = req.body
+
+    // Validar que pelo menos um campo está sendo atualizado
+    if (show_in_ranking === undefined && public_points === undefined && feed_achievements === undefined) {
+      return res.status(400).json({ error: 'Pelo menos um campo de visibilidade deve ser fornecido' })
+    }
+
+    // Buscar configurações atuais
+    const currentResult = await pool.query(
+      'SELECT visibility_settings FROM users WHERE id = $1',
+      [userId]
+    )
+
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Usuário não encontrado' })
+    }
+
+    const currentSettings = currentResult.rows[0].visibility_settings || { show_in_ranking: true, public_points: true, feed_achievements: true }
+
+    // Mesclar novas configurações com existentes
+    const newSettings = {
+      show_in_ranking: show_in_ranking !== undefined ? show_in_ranking : currentSettings.show_in_ranking,
+      public_points: public_points !== undefined ? public_points : currentSettings.public_points,
+      feed_achievements: feed_achievements !== undefined ? feed_achievements : currentSettings.feed_achievements
+    }
+
+    // Atualizar usuário
+    const result = await pool.query(
+      'UPDATE users SET visibility_settings = $1 WHERE id = $2 RETURNING visibility_settings',
+      [JSON.stringify(newSettings), userId]
+    )
+
+    return res.status(200).json({
+      visibility_settings: result.rows[0].visibility_settings
+    })
+  } catch (error) {
+    console.error('updateVisibility error:', error)
+    return res.status(500).json({ error: 'Erro interno do servidor' })
+  }
+}
+
 module.exports = {
   getUsers,
   getCurrentUser,
@@ -283,4 +500,9 @@ module.exports = {
   updateUser,
   deleteUserById,
   clearOrganization,
+  getMyProfile,
+  updateMyProfile,
+  getMyPointsHistory,
+  getPointsHistory,
+  updateVisibility,
 }

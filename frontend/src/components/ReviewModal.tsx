@@ -77,7 +77,15 @@ export default function ReviewModal({ open, onOpenChange, task, onReview, loadin
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm">
-                  {new Date(task.deadline).toLocaleDateString("pt-BR")}
+                  {(() => {
+                    if (!task.deadline) {
+                      return "Sem data";
+                    }
+                    const normalized = task.deadline.trim();
+                    const isoDate = normalized.split("T")[0];
+                    const date = new Date(isoDate);
+                    return Number.isNaN(date.getTime()) ? "Sem data" : date.toLocaleDateString("pt-BR");
+                  })()}
                 </span>
               </div>
               <Badge variant="secondary" className="w-fit">

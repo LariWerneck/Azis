@@ -188,8 +188,7 @@ export default function UserImport() {
             'Content-Type': 'application/json',
             ...getAuthHeaders(),
           },
-          body: JSON.stringify(createdUsers),
-        });
+          body: JSON.stringify(createdUsers),          credentials: 'include',        });
 
         const result = await response.json();
 

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import mascotVideo from "@/assets/mascot.png";
 import mascotVideoDark from "@/assets/mascot.png";
 import { useTheme } from "@/hooks/use-theme";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import logoLight from "@/assets/logo-azis.svg";
 import logoDark from "@/assets/logo-azis-branco.svg";
 import mockup from "@/assets/mockup.png";
@@ -59,12 +60,10 @@ export default function Landing() {
               Funcionalidades
             </a>
 
+            <ThemeToggle />
+
             <Link to="/login">
               <Button variant="ghost" size="sm">Entrar</Button>
-            </Link>
-
-            <Link to="/register">
-              <Button size="sm">Começar Grátis</Button>
             </Link>
           </div>
         </div>
@@ -96,21 +95,6 @@ export default function Landing() {
                 Gerencie tarefas, motive sua equipe com gamificação e acompanhe
                 o humor dos colaboradores — tudo em uma plataforma.
               </p>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/register">
-                  <Button size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow px-8">
-                    Começar Gratuitamente
-                    <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                </Link>
-
-                <Link to="/login">
-                  <Button variant="outline" size="lg">
-                    Já tenho conta
-                  </Button>
-                </Link>
-              </div>
             </motion.div>
           </div>
 

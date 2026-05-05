@@ -40,6 +40,7 @@ const formSchema = z.object({
     .number()
     .min(1, "Pontos devem estar entre 1 e 1000")
     .max(1000, "Pontos devem estar entre 1 e 1000"),
+  deadline: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -74,6 +75,7 @@ export default function TaskFormModal({ trigger, onSubmit }: TaskFormModalProps)
       description: "",
       assignedTo: "",
       points: 10,
+      deadline: "",
     },
   });
 
@@ -224,6 +226,24 @@ export default function TaskFormModal({ trigger, onSubmit }: TaskFormModalProps)
                       )}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="deadline"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Data de Entrega</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="date"
+                      value={field.value ?? ""}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      className="rounded-lg bg-[color:var(--surface2)] border-[color:var(--border)]"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
