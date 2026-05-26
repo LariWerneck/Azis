@@ -233,8 +233,8 @@ async function createUsers(req, res) {
         const hashedPassword = await bcrypt.hash(defaultPassword, 10)
 
         const insertResult = await pool.query(
-          'INSERT INTO users (name, email, role, nivel, position, password) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, name, email, role, nivel, position',
-          [name, email, normalizedRole, nivel, position || null, hashedPassword]
+          'INSERT INTO users (name, email, role, nivel, position, password, must_change_password) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, name, email, role, nivel, position',
+          [name, email, normalizedRole, nivel, position || null, hashedPassword, true]
         )
 
         createdUsers.push({ ...insertResult.rows[0], managerEmail })

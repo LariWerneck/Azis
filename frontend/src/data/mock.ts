@@ -16,6 +16,7 @@ export interface User {
   institution_id: string;
   position?: string;
   gestorId?: string | null;
+  must_change_password?: boolean;
 }
 
 export interface Task {

@@ -7,11 +7,13 @@ import { useNavigate } from "react-router-dom";
 import logoDark from "@/assets/logo-azis-branco.svg";
 import loginBg from "@/assets/Login-bg.mp4";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const apiUrl = (import.meta.env.VITE_API_URL as string) || "http://localhost:3000";
 
@@ -35,15 +37,18 @@ export default function Login() {
         return;
       }
 
-      localStorage.setItem("azis_token", data.token);
-      localStorage.setItem("azis_user", JSON.stringify(data.user));
+      login(data.token, data.user)
 
       toast({
         title: "Login realizado",
         description: "Bem-vindo de volta!",
       });
 
-      navigate("/dashboard");
+      if (data.user?.must_change_password) {
+        navigate("/change-password")
+      } else {
+        navigate("/dashboard")
+      }
     } catch (err) {
       toast({
         title: "Erro no login",

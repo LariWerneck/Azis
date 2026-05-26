@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import { getApiUrl, getAuthHeaders } from "@/lib/api";
 import type { Badge, FeedEvent, LeaderboardEntry, OnlineUser } from "@/types/feed";
+import { ParticleCard } from "@/components/ParticleCard";
 
 const FEED_TABS = [
   { id: "all", label: "🏆 Tudo" },
@@ -31,7 +33,8 @@ function formatUserAvatar(name: string, avatar?: string) {
 }
 
 export default function Feed() {
-  const currentUser = JSON.parse(localStorage.getItem("azis_user") || "{}") as { id?: string; name?: string; points?: number };
+  const { user } = useAuth();
+  const currentUser = user ?? (JSON.parse(localStorage.getItem("azis_user") || "{}") as { id?: string; name?: string; points?: number });
   const [activeTab, setActiveTab] = useState("all");
   const [feedEvents, setFeedEvents] = useState<FeedEvent[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -268,10 +271,12 @@ export default function Feed() {
 
           <div className="space-y-3">
             {filteredEvents.map((event, index) => (
-              <article
+              <ParticleCard
                 key={`${event.id ?? 'feed'}-${index}`}
-                className="relative overflow-hidden rounded-[18px] border border-[color:var(--feed-card-border)] bg-[color:var(--feed-card)] p-5 transition-transform duration-200 hover:-translate-y-0.5 hover:border-[color:var(--feed-purple)] hover:shadow-[var(--feed-glow-purple)] feed-card-slide"
+                className="rounded-[18px] border border-[color:var(--feed-card-border)] bg-[color:var(--feed-card)] p-5 transition-transform duration-200 hover:-translate-y-0.5 hover:border-[color:var(--feed-purple)] hover:shadow-[var(--feed-glow-purple)] feed-card-slide"
                 style={{ animationDelay: `${index * 0.06}s` }}
+                clickEffect={true}
+                enableStars={true}
               >
                 {event.isNew && (
                   <span className="absolute right-4 top-4 rounded-full bg-gradient-to-r from-[color:var(--feed-purple)] to-[color:var(--feed-blue)] px-3 py-1 text-[10px] font-[800] text-white feed-badge-glow">Novo</span>
@@ -324,7 +329,7 @@ export default function Feed() {
                     {event.stampEmoji}
                   </div>
                 </div>
-              </article>
+              </ParticleCard>
             ))}
             {filteredEvents.length === 0 && !isLoadingMore && (
               <div className="rounded-[18px] border border-[color:var(--feed-card-border)] bg-[color:var(--feed-card)] p-8 text-center text-[color:var(--feed-text2)]">
@@ -343,7 +348,7 @@ export default function Feed() {
 
         <aside className="hidden xl:block fixed top-[60px] right-0 h-[calc(100vh-60px)] w-[var(--feed-widgets-w)] border-l border-[color:var(--feed-card-border)] bg-[color:var(--feed-bg)] px-5 py-6 overflow-y-auto feed-scrollbar">
           <div className="space-y-5">
-            <section className="rounded-[18px] border border-[color:var(--feed-card-border)] bg-[color:var(--feed-card)] p-5">
+            <ParticleCard className="rounded-[18px] border border-[color:var(--feed-card-border)] bg-[color:var(--feed-card)] p-5" clickEffect={true} enableStars={true}>
               <div className="mb-4 flex items-center gap-3 text-[11px] font-[700] uppercase tracking-[1px] text-[color:var(--feed-text3)] font-[Orbitron]">
                 <span>🏆 Top Ranking</span>
                 <span className="flex-1 h-px bg-[color:var(--feed-divider)]" />
@@ -370,9 +375,9 @@ export default function Feed() {
                   </button>
                 ))}
               </div>
-            </section>
+            </ParticleCard>
 
-            <section className="rounded-[18px] border border-[color:var(--feed-card-border)] bg-[color:var(--feed-card)] p-5">
+            <ParticleCard className="rounded-[18px] border border-[color:var(--feed-card-border)] bg-[color:var(--feed-card)] p-5" clickEffect={true} enableStars={true}>
               <div className="mb-4 flex items-center gap-3 text-[11px] font-[700] uppercase tracking-[1px] text-[color:var(--feed-text3)] font-[Orbitron]">
                 <span>🏅 Seus Selos</span>
                 <span className="flex-1 h-px bg-[color:var(--feed-divider)]" />
@@ -389,9 +394,9 @@ export default function Feed() {
                 ))}
               </div>
               <div className="mt-3 text-center text-[11px] font-[700] text-[color:var(--feed-text3)]">{badges.filter((badge) => badge.unlocked).length} de {badges.length} desbloqueados</div>
-            </section>
+            </ParticleCard>
 
-            <section className="rounded-[18px] border border-[color:var(--feed-card-border)] bg-[color:var(--feed-card)] p-5">
+            <ParticleCard className="rounded-[18px] border border-[color:var(--feed-card-border)] bg-[color:var(--feed-card)] p-5" clickEffect={true} enableStars={true}>
               <div className="mb-4 flex items-center gap-3 text-[11px] font-[700] uppercase tracking-[1px] text-[color:var(--feed-text3)] font-[Orbitron]">
                 <span>🟢 Online agora</span>
                 <span className="flex-1 h-px bg-[color:var(--feed-divider)]" />
@@ -410,7 +415,7 @@ export default function Feed() {
               {onlineCount > 4 && (
                 <div className="mt-2 pl-4 text-[11px] font-[700] text-[color:var(--feed-text3)]">+ {onlineCount - 4} outros funcionários online</div>
               )}
-            </section>
+            </ParticleCard>
           </div>
         </aside>
       </div>

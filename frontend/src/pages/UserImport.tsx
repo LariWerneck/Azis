@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { saveActiveUsers, getActiveUsers, getCurrentUser, type User } from "@/data/mock";
+import { useAuth } from "@/contexts/AuthContext";
 import { getApiUrl, getAuthHeaders } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 import { sanitizeCsvContent, normalizeHeaderName, normalizeDataValue } from "@/lib/csvSanitizer";
@@ -24,11 +25,12 @@ interface ImportSummary {
 
 
 export default function UserImport() {
+  const { user } = useAuth();
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const currentUser = getCurrentUser();
+  const currentUser = user ?? getCurrentUser();
 
   const handleFile = (file: File) => {
     if (currentUser.nivel < 3) {

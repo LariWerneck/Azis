@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Trophy } from "lucide-react";
 import { getApiUrl, getAuthHeaders } from "@/lib/api";
 import RocketPodium from "@/components/RocketPodium";
+import { ParticleCard } from "@/components/ParticleCard";
 
 interface RankingUser {
   id: string;
@@ -95,7 +96,7 @@ export default function Ranking() {
   return (
     <div className="min-h-screen bg-[color:var(--bg)] text-[color:var(--text)]">
       <div className="p-6 lg:p-8">
-        <div className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--surface)] p-8 space-y-8">
+        <ParticleCard className="rounded-[24px] border border-[color:var(--border)] bg-[color:var(--surface)] p-8 space-y-8" enableStars={true} clickEffect={true}>
           <div>
             <h1 className="text-3xl font-heading font-bold text-foreground flex items-center gap-3">
               <Trophy className="w-8 h-8 text-[color:var(--gold)]" />
@@ -111,7 +112,7 @@ export default function Ranking() {
             fullList={users}
             currentUserId={undefined}
           />
-        </div>
+        </ParticleCard>
       </div>
     </div>
   );

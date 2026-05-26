@@ -1,0 +1,61 @@
+:root {
+  --pc-glow-rgb: 132, 0, 255;
+}
+
+html[data-theme="light"] {
+  --pc-glow-rgb: 59, 130, 246;
+}
+
+.pc-card {
+  position: relative;
+  overflow: hidden;
+  --glow-x: 50%;
+  --glow-y: 50%;
+  --glow-intensity: 0;
+  --glow-radius: 410px;
+}
+
+.pc-border-glow::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  background: radial-gradient(
+    var(--glow-radius) circle at var(--glow-x) var(--glow-y),
+    rgba(var(--pc-glow-rgb), calc(var(--glow-intensity) * 0.9)) 0%,
+    rgba(var(--pc-glow-rgb), calc(var(--glow-intensity) * 0.45)) 30%,
+    transparent 60%
+  );
+  border-radius: inherit;
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.pc-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(var(--pc-glow-rgb), 1);
+  box-shadow: 0 0 6px rgba(var(--pc-glow-rgb), 0.6);
+  pointer-events: none;
+  z-index: 100;
+}
+
+.pc-spotlight {
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+  pointer-events: none;
+}
+
+.pc-section {
+  position: relative;
+}

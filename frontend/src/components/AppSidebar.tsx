@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   KanbanSquare,
@@ -14,6 +14,7 @@ import {
 import { useEffect, useState } from "react";
 import { getApiUrl, getAuthHeaders } from "@/lib/api";
 import { getCurrentUser } from "@/data/mock";
+import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/hooks/use-theme";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import logoDark from "@/assets/logo-azis-branco.svg";
@@ -51,10 +52,16 @@ function getInitials(name: string) {
 
 export function AppSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const [feedBadgeCount, setFeedBadgeCount] = useState(0);
-  const [currentUser, setCurrentUser] = useState(getCurrentUser());
+  const [currentUser, setCurrentUser] = useState(user ?? getCurrentUser());
   const isDark = useTheme();
   const navItems = getNavItemsByRole(currentUser?.role ?? "funcionario");
+
+  useEffect(() => {
+    setCurrentUser(user ?? getCurrentUser());
+  }, [user]);
 
   useEffect(() => {
     let isMounted = true;
@@ -162,12 +169,16 @@ export function AppSidebar() {
         </div>
         <div className="mt-4 flex items-center justify-between gap-3">
           <ThemeToggle />
-          <Link
-            to="/"
+          <button
+            type="button"
+            onClick={() => {
+              logout()
+              navigate('/login')
+            }}
             className="text-sm font-medium text-[color:var(--muted)] hover:text-[color:var(--text)]"
           >
             Sair
-          </Link>
+          </button>
         </div>
       </div>
     </aside>

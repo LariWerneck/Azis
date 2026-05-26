@@ -1,9 +1,11 @@
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@/hooks/use-theme";
+import { useAuth } from "@/contexts/AuthContext";
 import { getApiUrl, getAuthHeaders } from "@/lib/api";
 import { Chart, CategoryScale, LinearScale, BarElement, BarController, Tooltip, Title } from "chart.js";
 import BadgeClaimModal from "@/components/BadgeClaimModal";
+import { ParticleCard, GlobalSpotlight } from "@/components/ParticleCard";
 
 Chart.register(CategoryScale, LinearScale, BarElement, BarController, Tooltip, Title);
 
@@ -70,12 +72,14 @@ const getPositionStyles = (position: number) => {
 };
 
 export default function Dashboard() {
-  const [currentUser, setCurrentUser] = useState<CurrentUser>({});
+  const { user } = useAuth();
+  const [currentUser, setCurrentUser] = useState<CurrentUser>(user ?? {});
   const isDark = useTheme();
   const chartCanvas = useRef<HTMLCanvasElement | null>(null);
   const chartInstance = useRef<Chart | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
-  const [userPoints, setUserPoints] = useState<number>(0);
+  const [userPoints, setUserPoints] = useState<number>(Number(user?.points ?? 0));
   const [badges, setBadges] = useState<BadgeItem[]>([]);
   const [monthly, setMonthly] = useState<MonthlyStat[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -129,6 +133,13 @@ export default function Dashboard() {
   const currentPoints = userEntry?.points ?? userPoints;
   const distanceToTop = Math.max(0, topScore - currentPoints);
   const progressToTop = topScore > 0 ? Math.min(1, currentPoints / topScore) : 0;
+
+  useEffect(() => {
+    if (user) {
+      setCurrentUser(user);
+      setUserPoints(Number(user.points ?? 0));
+    }
+  }, [user]);
 
   const loadDashboardData = async () => {
     try {
@@ -310,7 +321,8 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-[color:var(--bg)] text-[color:var(--text)]">
-      <div className="grid gap-5 px-[28px] py-[24px]">
+      <GlobalSpotlight gridRef={gridRef} spotlightRadius={410} />
+      <div ref={gridRef} className="grid gap-5 px-[28px] py-[24px] pc-section">
         <header className="flex items-center justify-between h-16 rounded-3xl bg-[color:var(--surface)] border border-[color:var(--border)] px-6">
           <div>
             <p className="text-[20px] font-heading font-bold text-[color:var(--text-strong)]">
@@ -327,12 +339,12 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <motion.section
+        <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
-          className="rounded-[16px] bg-[color:var(--surface)] border border-[color:var(--border)] p-6"
         >
+        <ParticleCard className="rounded-[16px] bg-[color:var(--surface)] border border-[color:var(--border)] p-6" clickEffect={true} enableStars={true}>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="text-[13px] uppercase tracking-[0.22em] font-heading font-semibold text-[color:var(--muted)]">
               🏅 Seus Selos
@@ -385,7 +397,8 @@ export default function Dashboard() {
             onClaim={handleClaimBadge}
             onClose={() => setPendingBadge(null)}
           />
-        </motion.section>
+        </ParticleCard>
+        </motion.div>
 
         <div className="grid gap-5 xl:grid-cols-[1fr_320px]">
           <div className="space-y-5">
@@ -418,7 +431,7 @@ export default function Dashboard() {
                   icon: "🏆",
                 },
               ].map((stat) => (
-                <div key={stat.label} className="rounded-[14px] border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
+                <ParticleCard key={stat.label} className="rounded-[14px] border border-[color:var(--border)] bg-[color:var(--surface)] p-4" enableTilt={true} enableMagnetism={true} clickEffect={true} enableStars={true}>
                   <div className="flex items-center justify-between gap-3 mb-4">
                     <span className="text-lg">{stat.icon}</span>
                     <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium ${stat.pillClass}`}>
@@ -429,31 +442,32 @@ export default function Dashboard() {
                     {stat.value}
                   </div>
                   <div className="mt-2 text-[12px] text-[color:var(--muted)]">{stat.label}</div>
-                </div>
+                </ParticleCard>
               ))}
             </motion.div>
 
-            <motion.section
+            <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1], delay: 0.08 }}
-              className="rounded-[14px] border border-[color:var(--border)] bg-[color:var(--surface)] p-5"
             >
-              <div className="flex items-center justify-between gap-3 text-[13px] uppercase font-heading font-semibold text-[color:var(--muted)]">
-                <span>📊 Produtividade Mensal</span>
-              </div>
-              <div className="mt-6 h-[320px]">
-                <canvas ref={chartCanvas} />
-              </div>
-            </motion.section>
+              <ParticleCard className="rounded-[14px] border border-[color:var(--border)] bg-[color:var(--surface)] p-5" clickEffect={true} enableStars={true}>
+                <div className="flex items-center justify-between gap-3 text-[13px] uppercase font-heading font-semibold text-[color:var(--muted)]">
+                  <span>📊 Produtividade Mensal</span>
+                </div>
+                <div className="mt-6 h-[320px]">
+                  <canvas ref={chartCanvas} />
+                </div>
+              </ParticleCard>
+            </motion.div>
           </div>
 
-          <motion.aside
+          <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
-            className="rounded-[16px] border border-[color:var(--border)] bg-[color:var(--surface)] p-5"
           >
+          <ParticleCard className="rounded-[16px] border border-[color:var(--border)] bg-[color:var(--surface)] p-5" clickEffect={true} enableStars={true}>
             <div className="mb-5 flex items-center justify-between gap-3 text-[13px] uppercase font-heading font-semibold text-[color:var(--muted)]">
               <span>👥 Ranking da Equipe</span>
             </div>
@@ -493,7 +507,8 @@ export default function Dashboard() {
                 <div className="h-full rounded-full bg-[color:var(--accent)]" style={{ width: `${Math.max(6, progressToTop * 100)}%` }} />
               </div>
             </div>
-          </motion.aside>
+          </ParticleCard>
+          </motion.div>
         </div>
       </div>
     </div>

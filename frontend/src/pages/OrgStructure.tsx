@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getActiveUsers, getCurrentUser, getManagerName, saveActiveUsers, type User } from "@/data/mock";
+import { useAuth } from "@/contexts/AuthContext";
 import { getApiUrl, getAuthHeaders } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -66,11 +67,12 @@ function TreeNode({ user, level, selectedId, onSelect, allUsers }: TreeNodeProps
 }
 
 export default function OrgStructure() {
+  const { user } = useAuth();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [newGestorId, setNewGestorId] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
-  const currentUser = getCurrentUser();
+  const currentUser = user ?? getCurrentUser();
   const [users, setUsers] = useState<User[]>(getActiveUsers());
   const visibleUsers = [...users].sort(sortUsers);
 

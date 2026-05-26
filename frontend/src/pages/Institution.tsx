@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Star } from "lucide-react";
-import { getActiveUsers, getCurrentUser } from "@/data/mock";
+import { getActiveUsers } from "@/data/mock";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 const AVATAR_COLORS = [
@@ -16,7 +17,8 @@ const AVATAR_COLORS = [
 ];
 
 export default function Institution() {
-  const currentUser = getCurrentUser();
+  const { user } = useAuth();
+  const currentUser = user ?? { role: "funcionario" };
 
   if (currentUser.role === "funcionario") {
     return (

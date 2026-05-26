@@ -31,6 +31,17 @@ async function initDB() {
 
   await pool.query(createTableSql)
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token VARCHAR(255) UNIQUE NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+  `)
+
   // Novas tabelas do sistema (idempotente)
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tasks (
@@ -156,6 +167,7 @@ async function initDB() {
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS points INTEGER NOT NULL DEFAULT 0")
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS position VARCHAR(255)")
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS gestor_id INTEGER")
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE")
   await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS equipe VARCHAR(255)")
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS visibility_settings JSONB DEFAULT '{"show_in_ranking": true, "public_points": true, "feed_achievements": true}'`)
 
